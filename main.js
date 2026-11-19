@@ -66,9 +66,14 @@ scene.add(new THREE.Mesh(tg, tmat));
 const wall = new THREE.MeshLambertMaterial({ color: new THREE.Color(0.42, 0.36, 0.26) });
 const roofs = [[0.12, 0.13, 0.14], [0.20, 0.16, 0.12], [0.28, 0.10, 0.07]].map(c => new THREE.MeshLambertMaterial({ color: new THREE.Color(...c) }));
 const ink = new THREE.LineBasicMaterial({ color: 0x2a211a });
+// 昭和風格貼圖（Codex 生成：屋頂 3 種、長邊立面 2 種、短邊立面 1 種）
+const mt = async n => new THREE.MeshLambertMaterial({ map: prep(await loader.loadAsync(`data/models/${n}.jpg`)) });
+const [rA, rB, rC, wA, wB, wS] = await Promise.all(["roofA", "roofB", "roofC", "wallA", "wallB", "wallS"].map(mt));
+const sRoof = [rA, rB, rC], sWall = [wA, wB];
 meta.boxes.forEach((b, i) => {
   const g = new THREE.BoxGeometry(b.w, b.h, b.d);
-  const m = new THREE.Mesh(g, [wall, wall, roofs[i % 3], wall, wall, wall]);
+  const L = sWall[i % 2];     // 面順序：+x、-x（短邊）、頂、底、+z、-z（長邊）
+  const m = new THREE.Mesh(g, [wS, wS, sRoof[i % 3], wall, L, L]);
   m.position.set(b.x, b.z * EX + b.h / 2, -b.y);
   m.rotation.y = b.rot;
   m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g), ink));
@@ -76,7 +81,7 @@ meta.boxes.forEach((b, i) => {
 });
 
 // ---- 85 大樓（直立面板，轉向相機）
-const tw = meta.tower;
+const tw = { ...meta.tower, img: "data/models/tower.png", aspect: 553 / 1459 };   // Codex 重畫的昭和風格版
 const towerTex = prep(await loader.loadAsync(tw.img));
 const tower = new THREE.Mesh(new THREE.PlaneGeometry(tw.h * tw.aspect, tw.h).translate(0, tw.h / 2, 0),
   new THREE.MeshBasicMaterial({ map: towerTex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, fog: true }));
@@ -180,7 +185,8 @@ function view(c) {
   controls.update();
 }
 const C = meta.cam;
-view(C);
+const qc = new URLSearchParams(location.search).get("cam");     // ?cam=經度,緯度,高度,俯角,方位,焦距
+if (qc) { const [lon, lat, alt, tilt, yaw, lens] = qc.split(",").map(Number); view({ lon, lat, alt, tilt, yaw, lens }); } else view(C);
 document.getElementById("bView").onclick = () => view(C);
 document.getElementById("bTop").onclick = () => view({ lon: 120.33, lat: 22.60, alt: 70000, tilt: 89.9, yaw: 90, lens: 30 });
 function toggle(id, obj) {
